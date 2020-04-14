@@ -14,8 +14,8 @@ foreach($a in $accounts){
     Write-Host ""
     $securityGroup  = (Get-EC2SecurityGroup -region $region)
 
-    if($rollback = $false){$address = $address01; $newaddress = $address02}
-    if($rollback = $true){$address = $address02; $newaddress = $address01} 
+    if($rollback -eq $false){$address = $address01; $newaddress = $address02}
+    if($rollback -eq $true){Write-Host "Rolling back changes." -f yellow; $address = $address02; $newaddress = $address01} 
 
     # Loop through each security group and find the ip address
     foreach($grp in $securityGroup){
@@ -37,9 +37,10 @@ foreach($a in $accounts){
                     try {
                         Write-Host "Matched $oldaddress" -f green -nonewline ;
                         Grant-EC2SecurityGroupIngress -region $region -GroupID $grpID -IpPermissions @{IpProtocol="$protocol";FromPort=$fromPort;ToPort=$toPort;IpRanges=@("$newaddress")}                         
-                        Write-Host " :: " -nonewline ; Write-Host "updated to $newaddress " -f cyan ; 
+                        Write-Host " :: " -nonewline ; Write-Host "added $newaddress " -f cyan ; 
                         # Delete old rule
-                        Revoke-EC2SecurityGroupIngress -region $region -GroupID $grpID -IpPermissions @{IpProtocol="$protocol";FromPort=$fromPort;ToPort=$toPort;IpRanges=@("$oldaddress")}
+                        if($replace -eq $true){Revoke-EC2SecurityGroupIngress -region $region -GroupID $grpID -IpPermissions @{IpProtocol="$protocol";FromPort=$fromPort;ToPort=$toPort;IpRanges=@("$oldaddress")}
+                    }
                         # Generate rollback pscustom object 
                         $obj = [PSCustomObject]@{
                             Account     = "$account"
@@ -58,6 +59,7 @@ foreach($a in $accounts){
         }
     }
 }
+Write-Host ""
     # Terminate script if rolling back
     if($rollback -eq $true){
         Write-Host " --------------- "
